@@ -1,0 +1,90 @@
+package turnos
+
+import (
+	"errors"
+	"context"
+
+	"github.com/AguirreAlexa/clinica/internal/domain"
+)
+
+type Service interface {
+	GetByID(ctx context.Context, id int) (domain.Turno, error)
+	Save(ctx context.Context, id int, nombre, apellido string) (domain.Turno, error)
+	Update(ctx context.Context, id int, t domain.Turno,data map[string]interface{}) (domain.Turno, error)
+	Delete(ctx context.Context, id int) error
+}
+
+type service struct {
+	r Repository
+}
+
+func NewService(r Repository) Service {
+	return &service{
+		r: r,
+	}
+}
+
+/* Desarrollo de funciones */
+
+func (s *service) GetByID(ctx context.Context, id int) (domain.Turno, error) {
+	d, err := s.r.GetByID(ctx, id)
+	if err != nil {
+		return domain.Turno{}, errors.New("Turno not found")
+	}
+	return d, nil
+}
+
+func (s *service) Save(ctx context.Context, id int, nombre, apellido, domicilio, fechaAlta string, dni int) (domain.Turno, error) {
+	if s.r.Exists(ctx, id) {
+		return domain.Turno{}, errors.New("Turno already exists")
+	}
+
+	paciente := domain.Paciente{ID: id, Nombre: nombre, Apellido: apellido, Domicilio: domicilio, DNI: dni, FechaAlta: fechaAlta}
+
+	p, err := s.r.Save(ctx, paciente)
+	if err != nil {
+		return domain.Paciente{}, err
+	}
+
+	paciente.ID = p
+
+	return paciente, nil
+}
+
+func (s *service) Update(ctx context.Context, id int, p domain.Paciente,data map[string]interface{}) (domain.Turno, error) {
+	paciente, err := s.r.GetByID(ctx, id)
+	if err != nil {
+		return domain.Paciente{}, errors.New("Pacient not found")
+	}
+
+	if nombre, ok := data["nombre"].(string); ok && &nombre != nil {
+		paciente.Nombre = nombre
+	}
+
+	if apellido, ok := data["apellido"].(string); ok && &apellido != nil {
+		paciente.Apellido = apellido
+	}
+
+	if domicilio, ok := data["domicilio"].(string); ok && &domicilio != nil {
+		paciente.Domicilio = domicilio
+	}
+
+	if fechaAlta, ok := data["fecha_de_alta"].(string); ok && &fechaAlta != nil {
+		paciente.FechaAlta = fechaAlta
+	}
+	
+	paciente, err = s.r.Update(ctx, p)
+	if err != nil {
+		return domain.Paciente{}, errors.New("Internal error")
+	}
+	return paciente, nil
+}
+
+func (s *service) Delete(ctx context.Context, id int) error {
+	err := s.r.Delete(ctx, id)
+	if err != nil {
+		return errors.New("Turno not found")
+	}
+	return nil
+}
+
